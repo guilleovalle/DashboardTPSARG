@@ -273,7 +273,19 @@
       <div class="label">Ganancia neta</div>
       <div class="value" id="cardNet">—</div>
     </div>
+    <div class="card">
+      <div class="label">Compradores recurrentes</div>
+      <div class="value" id="cardRepeat">—</div>
+    </div>
   </div>
+
+  <section id="repeatBuyersSection" style="display:none;">
+    <div class="section-head">
+      <h2>Compradores que repitieron</h2>
+      <span class="count">en el período seleccionado</span>
+    </div>
+    <div id="repeatBuyersWrap"><div class="empty">Sin datos aún</div></div>
+  </section>
 
   <section>
     <div class="section-head">
@@ -664,6 +676,7 @@ async function loadMonthlyGoal(){
     const page = await mlFetch(q);
     const results = page.results || [];
     results.forEach(o=>{
+      if(!isOrderValid(o)) return;
       (o.order_items||[]).forEach(oi=>{ units += (oi.quantity || 0); });
     });
     const total = page.paging ? page.paging.total : results.length;
@@ -690,6 +703,13 @@ let STOCK_GROUPS = [];
 let SALES_BY_TITLE = {};
 let PERIOD_DAY_COUNT = 1;
 
+function isOrderValid(o){
+  if(o.status && o.status !== 'paid') return false;
+  const payments = o.payments || [];
+  if(payments.some(p => ['refunded','cancelled','charged_back'].includes(p.status))) return false;
+  return true;
+}
+
 async function loadSales(){
   const fromISO = keyToArgISO(PERIOD_FROM_KEY, false);
   const toISO = keyToArgISO(PERIOD_TO_KEY, true);
@@ -700,6 +720,8 @@ async function loadSales(){
   let totalUnits = 0;
   let totalFees = 0;
   const buyerIds = new Set();
+  const buyerCounts = {};
+  const buyerPurchaseKeys = {};
   const buckets = {};
   const byTitle = {};
   while(true){
@@ -707,9 +729,20 @@ async function loadSales(){
     const page = await mlFetch(q);
     const results = page.results || [];
     results.forEach(o=>{
+      if(!isOrderValid(o)) return;
       const money = o.total_amount || 0;
       let units = 0;
-      if(o.buyer && o.buyer.id){ buyerIds.add(o.buyer.id); }
+      const purchaseKey = o.pack_id ? ('pack:'+o.pack_id) : ('order:'+o.id);
+      if(o.buyer && o.buyer.id){
+        const bid = o.buyer.id;
+        buyerIds.add(bid);
+        if(!buyerPurchaseKeys[bid]) buyerPurchaseKeys[bid] = new Set();
+        buyerPurchaseKeys[bid].add(purchaseKey);
+        if(!buyerCounts[bid]){
+          buyerCounts[bid] = { nickname: o.buyer.nickname || o.buyer.first_name || ('Comprador '+bid), money: 0 };
+        }
+        buyerCounts[bid].money += money;
+      }
       (o.order_items||[]).forEach(oi=>{
         units += (oi.quantity || 0);
         totalFees += (oi.sale_fee || 0);
@@ -728,6 +761,23 @@ async function loadSales(){
     if(offset >= total || offset >= 1000 || results.length === 0) break;
   }
   const orderCount = buyerIds.size;
+
+  const repeatBuyers = Object.keys(buyerCounts)
+    .map(bid => ({ nickname: buyerCounts[bid].nickname, money: buyerCounts[bid].money, count: buyerPurchaseKeys[bid].size }))
+    .filter(b => b.count > 1)
+    .sort((a,b)=> b.count - a.count);
+  document.getElementById('cardRepeat').textContent = repeatBuyers.length;
+  const repeatWrap = document.getElementById('repeatBuyersWrap');
+  const repeatSection = document.getElementById('repeatBuyersSection');
+  if(repeatBuyers.length === 0){
+    repeatSection.style.display = 'none';
+  } else {
+    repeatSection.style.display = 'block';
+    let rows = repeatBuyers.map(b=>{
+      return '<tr><td>'+escapeHtml(b.nickname)+'</td><td class="num" style="width:90px;">'+b.count+' compras</td><td class="num" style="width:120px;">$'+Math.round(b.money).toLocaleString('es-AR')+'</td></tr>';
+    }).join('');
+    repeatWrap.innerHTML = '<table><thead><tr><th>Comprador</th><th style="text-align:right">Compras</th><th style="text-align:right">Total gastado</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
 
   DAILY_BUCKETS = buckets;
   SALES_BY_TITLE = byTitle;
