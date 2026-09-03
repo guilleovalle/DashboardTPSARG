@@ -234,6 +234,12 @@
         <button class="ghost" onclick="applyCustomRange()">Aplicar</button>
       </div>
     </div>
+    <div style="grid-column:1/-1;display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:8px;">
+      <label for="provinceFilter" style="font-size:12px;color:var(--text-mid);">Provincia:</label>
+      <select id="provinceFilter" onchange="setProvinceFilter()" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:13px;">
+        <option value="all">Todas las provincias</option>
+      </select>
+    </div>
   </div>
 
   <div class="cards">
@@ -702,12 +708,64 @@ function isOrderValid(o){
   return true;
 }
 
+let RAW_ORDERS = [];
+let PROVINCE_FILTER = 'all';
+
 async function loadSales(){
   const fromISO = keyToArgISO(PERIOD_FROM_KEY, false);
   const toISO = keyToArgISO(PERIOD_TO_KEY, true);
 
   let offset = 0;
   const limit = 50;
+  let raw = [];
+  while(true){
+    const q = '/orders/search?seller='+USER_ID+'&order.status=paid&order.date_created.from='+encodeURIComponent(fromISO)+'&order.date_created.to='+encodeURIComponent(toISO)+'&limit='+limit+'&offset='+offset+'&sort=date_desc';
+    const page = await mlFetch(q);
+    const results = page.results || [];
+    results.forEach(o=>{ if(isOrderValid(o)) raw.push(o); });
+    const total = page.paging ? page.paging.total : results.length;
+    offset += limit;
+    if(offset >= total || offset >= 1000 || results.length === 0) break;
+  }
+
+  setStatus('Buscando provincia de '+raw.length+' órdenes...');
+  const shipIds = [...new Set(raw.map(o => o.shipping && o.shipping.id).filter(Boolean))];
+  const provinceCache = {};
+  for(const sid of shipIds){
+    try{
+      const ship = await mlFetch('/shipments/'+sid);
+      provinceCache[sid] = (ship.receiver_address && ship.receiver_address.state && ship.receiver_address.state.name) || 'Sin dato';
+    }catch(e){
+      provinceCache[sid] = 'Sin dato';
+    }
+  }
+  raw.forEach(o=>{
+    o.province = (o.shipping && o.shipping.id) ? (provinceCache[o.shipping.id] || 'Sin dato') : 'Sin dato';
+  });
+
+  RAW_ORDERS = raw;
+  populateProvinceFilter(raw);
+  runSalesAggregation();
+}
+
+function populateProvinceFilter(orders){
+  const provinces = [...new Set(orders.map(o => o.province))].sort();
+  const sel = document.getElementById('provinceFilter');
+  const current = sel.value || 'all';
+  sel.innerHTML = '<option value="all">Todas las provincias</option>' +
+    provinces.map(p => '<option value="'+escapeHtml(p)+'">'+escapeHtml(p)+'</option>').join('');
+  sel.value = provinces.includes(current) ? current : 'all';
+  PROVINCE_FILTER = sel.value;
+}
+
+function setProvinceFilter(){
+  PROVINCE_FILTER = document.getElementById('provinceFilter').value;
+  runSalesAggregation();
+}
+
+function runSalesAggregation(){
+  const orders = PROVINCE_FILTER === 'all' ? RAW_ORDERS : RAW_ORDERS.filter(o => o.province === PROVINCE_FILTER);
+
   let totalMoney = 0;
   let totalUnits = 0;
   let totalFees = 0;
@@ -716,42 +774,34 @@ async function loadSales(){
   const buyerPurchaseKeys = {};
   const buckets = {};
   const byTitle = {};
-  while(true){
-    const q = '/orders/search?seller='+USER_ID+'&order.status=paid&order.date_created.from='+encodeURIComponent(fromISO)+'&order.date_created.to='+encodeURIComponent(toISO)+'&limit='+limit+'&offset='+offset+'&sort=date_desc';
-    const page = await mlFetch(q);
-    const results = page.results || [];
-    results.forEach(o=>{
-      if(!isOrderValid(o)) return;
-      const money = o.total_amount || 0;
-      let units = 0;
-      const purchaseKey = o.pack_id ? ('pack:'+o.pack_id) : ('order:'+o.id);
-      if(o.buyer && o.buyer.id){
-        const bid = o.buyer.id;
-        buyerIds.add(bid);
-        if(!buyerPurchaseKeys[bid]) buyerPurchaseKeys[bid] = new Set();
-        buyerPurchaseKeys[bid].add(purchaseKey);
-        if(!buyerCounts[bid]){
-          buyerCounts[bid] = { nickname: o.buyer.nickname || o.buyer.first_name || ('Comprador '+bid), money: 0 };
-        }
-        buyerCounts[bid].money += money;
+
+  orders.forEach(o=>{
+    const money = o.total_amount || 0;
+    let units = 0;
+    const purchaseKey = o.pack_id ? ('pack:'+o.pack_id) : ('order:'+o.id);
+    if(o.buyer && o.buyer.id){
+      const bid = o.buyer.id;
+      buyerIds.add(bid);
+      if(!buyerPurchaseKeys[bid]) buyerPurchaseKeys[bid] = new Set();
+      buyerPurchaseKeys[bid].add(purchaseKey);
+      if(!buyerCounts[bid]){
+        buyerCounts[bid] = { nickname: o.buyer.nickname || o.buyer.first_name || ('Comprador '+bid), money: 0 };
       }
-      (o.order_items||[]).forEach(oi=>{
-        units += (oi.quantity || 0);
-        totalFees += (oi.sale_fee || 0);
-        const t = oi.item && oi.item.title ? oi.item.title.trim().toLowerCase() : null;
-        if(t){ byTitle[t] = (byTitle[t]||0) + (oi.quantity || 0); }
-      });
-      totalMoney += money;
-      totalUnits += units;
-      const day = argKeyFromTimestamp(o.date_created);
-      if(!buckets[day]) buckets[day] = {money:0, units:0};
-      buckets[day].money += money;
-      buckets[day].units += units;
+      buyerCounts[bid].money += money;
+    }
+    (o.order_items||[]).forEach(oi=>{
+      units += (oi.quantity || 0);
+      totalFees += (oi.sale_fee || 0);
+      const t = oi.item && oi.item.title ? oi.item.title.trim().toLowerCase() : null;
+      if(t){ byTitle[t] = (byTitle[t]||0) + (oi.quantity || 0); }
     });
-    const total = page.paging ? page.paging.total : results.length;
-    offset += limit;
-    if(offset >= total || offset >= 1000 || results.length === 0) break;
-  }
+    totalMoney += money;
+    totalUnits += units;
+    const day = argKeyFromTimestamp(o.date_created);
+    if(!buckets[day]) buckets[day] = {money:0, units:0};
+    buckets[day].money += money;
+    buckets[day].units += units;
+  });
   const orderCount = buyerIds.size;
 
   const repeatBuyers = Object.keys(buyerCounts)
@@ -771,6 +821,7 @@ async function loadSales(){
   document.getElementById('cardNet').textContent = '$'+Math.round(totalMoney - totalFees).toLocaleString('es-AR');
   renderSalesChart();
   renderRanking();
+  renderForecast();
 }
 
 function renderSalesChart(){
