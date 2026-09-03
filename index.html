@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard vendedor · Mercado Libre</title>
+<style>
+  @font-face {
+    font-family: 'Fraunces';
+    src: local('Georgia');
+  }
+  :root{
+    --bg:#0D1B24;
+    --panel:#132A38;
+    --panel-2:#0F212C;
+    --border:#1F3F52;
+    --border-soft:#17323F;
+    --teal:#3ECFB8;
+    --teal-dim:#245A50;
+    --amber:#E9B14D;
+    --amber-dim:#4A3A1A;
+    --red:#E5765A;
+    --red-dim:#4A2620;
+    --text:#EAF3F1;
+    --text-mid:#9FB6BC;
+    --text-dim:#5E7480;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    padding:32px 40px 80px;
+  }
+  h1{
+    font-family:Georgia,'Iowan Old Style',serif;
+    font-weight:400;
+    font-size:30px;
+    margin:0 0 2px;
+    letter-spacing:0.2px;
+  }
+  .sub{
+    color:var(--text-mid);
+    font-size:14px;
+    margin:0 0 28px;
+  }
+  .topbar{
+    display:flex;
+    gap:12px;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:18px 20px;
+    margin-bottom:28px;
+  }
+  .field{display:flex;flex-direction:column;gap:6px;flex:1;min-width:260px;}
+  label{font-size:12px;color:var(--text-mid);}
+  input[type=text], input[type=password]{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:9px 11px;
+    border-radius:6px;
+    font-size:13px;
+    font-family:inherit;
+  }
+  input:focus{outline:1px solid var(--teal); border-color:var(--teal);}
+  button{
+    background:var(--teal);
+    color:#0A1D19;
+    border:none;
+    padding:10px 18px;
+    border-radius:6px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  button:hover{background:#57E0C9;}
+  button:disabled{background:var(--teal-dim);color:var(--text-dim);cursor:default;}
+  button.ghost{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-mid);
+  }
+  button.ghost:hover{border-color:var(--teal);color:var(--teal);}
+  .status-line{
+    font-size:12px;
+    color:var(--text-dim);
+    margin-top:4px;
+    min-height:16px;
+  }
+  .status-line.err{color:var(--red);}
+  .period-toggle{display:flex;gap:6px;}
+  .period-toggle button{
+    background:var(--panel-2);
+    color:var(--text-mid);
+    border:1px solid var(--border);
+    padding:9px 14px;
+    font-weight:400;
+  }
+  .period-toggle button.active{
+    background:var(--teal-dim);
+    color:var(--teal);
+    border-color:var(--teal);
+  }
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:14px;
+    margin-bottom:32px;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px 18px;
+  }
+  .card .label{font-size:12px;color:var(--text-mid);margin-bottom:10px;}
+  .card .value{font-size:26px;font-weight:600;font-family:Georgia,serif;}
+  .card .value small{font-size:14px;font-weight:400;color:var(--text-mid);margin-left:4px;}
+  .card.accent{border-color:var(--teal-dim);}
+  .card.accent .value{color:var(--teal);}
+  .card.warn .value{color:var(--amber);}
+  .card.alert .value{color:var(--red);}
+
+  section{margin-bottom:34px;}
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:1px solid var(--border-soft);
+    padding-bottom:8px;
+    margin-bottom:14px;
+  }
+  .section-head h2{
+    font-family:Georgia,serif;
+    font-weight:400;
+    font-size:18px;
+    margin:0;
+  }
+  .section-head .count{font-size:12px;color:var(--text-dim);}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{
+    text-align:left;
+    font-weight:500;
+    color:var(--text-dim);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+    padding:6px 10px;
+    border-bottom:1px solid var(--border-soft);
+  }
+  td{
+    padding:10px 10px;
+    border-bottom:1px solid var(--border-soft);
+    vertical-align:top;
+  }
+  tr:last-child td{border-bottom:none;}
+  td.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .pill{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:20px;
+    font-size:11px;
+  }
+  .pill.low{background:var(--red-dim);color:var(--red);}
+  .pill.mid{background:var(--amber-dim);color:var(--amber);}
+  .pill.ok{background:var(--teal-dim);color:var(--teal);}
+  .empty{
+    color:var(--text-dim);
+    font-size:13px;
+    padding:20px 0;
+    text-align:center;
+  }
+  .prod-title{color:var(--text);}
+  .prod-id{color:var(--text-dim);font-size:11px;}
+  a{color:var(--teal);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  .hidden{display:none;}
+  .spinner{
+    display:inline-block;width:12px;height:12px;
+    border:2px solid var(--text-dim);border-top-color:var(--teal);
+    border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;vertical-align:-2px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<div id="lockScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:32px 36px;max-width:340px;width:100%;">
+    <h1 style="font-size:22px;margin:0 0 6px;">Dashboard de vendedor</h1>
+    <p style="color:var(--text-mid);font-size:13px;margin:0 0 18px;">Ingresá la clave para continuar</p>
+    <input type="password" id="sitePasswordInput" placeholder="Clave" autocomplete="off" style="width:100%;margin-bottom:10px;" onkeydown="if(event.key==='Enter') checkSitePassword()">
+    <button style="width:100%;" onclick="checkSitePassword()">Entrar</button>
+    <p id="sitePasswordError" style="color:var(--red);font-size:12px;margin:10px 0 0;min-height:14px;"></p>
+  </div>
+</div>
+
+<div id="mainContent" style="display:none;">
+
+<h1>Dashboard de vendedor</h1>
+<p class="sub" id="sellerLine">Mercado Libre · conecta tu cuenta para ver stock, ventas y despachos</p>
+
+<div class="topbar">
+  <div class="field">
+    <label for="tokenInput">Refresh token (se pega una sola vez)</label>
+    <input type="password" id="tokenInput" placeholder="TG-..." autocomplete="off">
+  </div>
+  <button id="connectBtn" onclick="connect()">Conectar</button>
+  <button class="ghost hidden" id="refreshBtn" onclick="loadAll()">Actualizar</button>
+</div>
+<p class="status-line" id="statusLine"></p>
+
+<div id="app" class="hidden">
+
+  <div class="cards" id="periodRow">
+    <div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+      <div class="period-toggle" id="periodToggle">
+        <button data-days="0" onclick="setPeriod(0)">Hoy</button>
+        <button data-days="7" onclick="setPeriod(7)">7 días</button>
+        <button data-days="30" class="active" onclick="setPeriod(30)">30 días</button>
+        <button data-days="90" onclick="setPeriod(90)">90 días</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" id="dateFrom" style="padding:8px 10px;">
+        <span style="color:var(--text-dim);font-size:12px;">a</span>
+        <input type="date" id="dateTo" style="padding:8px 10px;">
+        <button class="ghost" onclick="applyCustomRange()">Aplicar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="label">Ventas en plata</div>
+      <div class="value" id="cardMoney">—</div>
+    </div>
+    <div class="card accent">
+      <div class="label">Ventas en unidades</div>
+      <div class="value" id="cardUnits">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Publicaciones activas</div>
+      <div class="value" id="cardListings">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Stock total (unidades)</div>
+      <div class="value" id="cardStock">—</div>
+    </div>
+    <div class="card warn">
+      <div class="label">Órdenes a despachar</div>
+      <div class="value" id="cardDespacho">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Reputación</div>
+      <div class="value" id="cardRep" style="font-size:18px;">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Ticket promedio</div>
+      <div class="value" id="cardTicket">—</div>
+    </div>
+    <div class="card">
+      <div class="label">Comisiones ML</div>
+      <div class="value" id="cardFees">—</div>
+    </div>
+    <div class="card accent">
+      <div class="label">Ganancia neta</div>
+      <div class="value" id="cardNet">—</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="section-head">
+      <h2>Meta mensual</h2>
+      <span class="count" id="goalSubtitle">17 unidades/día</span>
+    </div>
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 20px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+        <span id="goalUnitsLabel" style="font-size:13px;color:var(--text-mid);">—</span>
+        <span id="goalPercentLabel" style="font-size:22px;font-weight:600;font-family:Georgia,serif;color:var(--teal);">—</span>
+      </div>
+      <div style="background:var(--panel-2);border:1px solid var(--border-soft);border-radius:20px;height:14px;overflow:hidden;">
+        <div id="goalBarFill" style="background:var(--teal);height:100%;width:0%;transition:width .4s ease;"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Ventas por día</h2>
+      <div class="period-toggle" id="chartMetricToggle">
+        <button data-metric="money" class="active" onclick="setChartMetric('money')">Plata</button>
+        <button data-metric="units" onclick="setChartMetric('units')">Unidades</button>
+      </div>
+    </div>
+    <div style="position:relative;height:260px;">
+      <canvas id="salesChart"></canvas>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Órdenes a despachar</h2>
+      <span class="count" id="despachoCount"></span>
+    </div>
+    <div id="despachoTableWrap"><div class="empty">Sin datos aún</div></div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Stock por publicación</h2>
+      <span class="count" id="stockCount"></span>
+    </div>
+    <div id="stockTableWrap"><div class="empty">Sin datos aún</div></div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Ranking de productos</h2>
+      <span class="count">por unidades vendidas en el período</span>
+    </div>
+    <div id="rankingWrap"><div class="empty">Sin datos aún</div></div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Pronóstico de ventas por producto</h2>
+      <span class="count">basado en el ritmo del período seleccionado</span>
+    </div>
+    <div id="forecastTableWrap"><div class="empty">Sin datos aún</div></div>
+  </section>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const SITE_PASSWORD = 'TPSARG2026';
+
+function checkSitePassword(){
+  const val = document.getElementById('sitePasswordInput').value;
+  if(val === SITE_PASSWORD){
+    document.getElementById('lockScreen').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+  } else {
+    document.getElementById('sitePasswordError').textContent = 'Clave incorrecta.';
+  }
+}
+
+let TOKEN = '';
+let REFRESH_TOKEN = '';
+let USER_ID = '';
+let AUTO_REFRESH_TIMER = null;
+let PERIOD_FROM_KEY = null;
+let PERIOD_TO_KEY = null;
+let CHART_METRIC = 'money';
+let SALES_CHART = null;
+const API = 'https://api.mercadolibre.com';
+const ARG_OFFSET = '-03:00';
+const CLIENT_ID = '6120114184871168';
+const CLIENT_SECRET = 'XFcjBCBd4dsXNTl5VQ0h6aIbLop496UZ';
+
+function todayArgKey(){
+  const now = new Date();
+  const shifted = new Date(now.getTime() - 3*60*60*1000);
+  return shifted.toISOString().slice(0,10);
+}
+
+function addDaysToKey(key, days){
+  const d = new Date(key + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0,10);
+}
+
+function keyToArgISO(key, endOfDay){
+  return key + (endOfDay ? 'T23:59:59' : 'T00:00:00') + '.000' + ARG_OFFSET;
+}
+
+function argKeyFromTimestamp(isoString){
+  const d = new Date(isoString);
+  const shifted = new Date(d.getTime() - 3*60*60*1000);
+  return shifted.toISOString().slice(0,10);
+}
+
+function initDates(){
+  const to = todayArgKey();
+  const from = addDaysToKey(to, -30);
+  PERIOD_FROM_KEY = from;
+  PERIOD_TO_KEY = to;
+  document.getElementById('dateFrom').value = from;
+  document.getElementById('dateTo').value = to;
+}
+initDates();
+
+function setStatus(msg, isErr){
+  const el = document.getElementById('statusLine');
+  el.textContent = msg || '';
+  el.className = 'status-line' + (isErr ? ' err' : '');
+}
+
+async function refreshAccessToken(){
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    client_id: CLIENT_ID,
+    client_secret: CLIENT_SECRET,
+    refresh_token: REFRESH_TOKEN
+  });
+  const res = await fetch(API + '/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString()
+  });
+  if(!res.ok){
+    const t = await res.text();
+    throw new Error('No se pudo renovar el token: ' + t.slice(0,150));
+  }
+  const data = await res.json();
+  TOKEN = data.access_token;
+  if(data.refresh_token) REFRESH_TOKEN = data.refresh_token;
+  scheduleAutoRefresh(data.expires_in || 21600);
+  return TOKEN;
+}
+
+function scheduleAutoRefresh(expiresInSeconds){
+  if(AUTO_REFRESH_TIMER) clearTimeout(AUTO_REFRESH_TIMER);
+  const refreshInMs = Math.max(60, expiresInSeconds - 600) * 1000;
+  AUTO_REFRESH_TIMER = setTimeout(async ()=>{
+    try{
+      await refreshAccessToken();
+      setStatus('Token renovado automáticamente ' + new Date().toLocaleTimeString('es-AR', {timeZone:'America/Argentina/Buenos_Aires'}));
+    }catch(e){
+      setStatus('No se pudo renovar el token automáticamente: ' + e.message, true);
+    }
+  }, refreshInMs);
+}
+
+async function mlFetch(path, isRetry){
+  const sep = path.includes('?') ? '&' : '?';
+  const url = API + path + sep + 'access_token=' + encodeURIComponent(TOKEN);
+  const res = await fetch(url);
+  if(res.status === 401 && !isRetry && REFRESH_TOKEN){
+    await refreshAccessToken();
+    return mlFetch(path, true);
+  }
+  if(!res.ok){
+    const body = await res.text();
+    throw new Error('HTTP ' + res.status + ' en ' + path + ' — ' + body.slice(0,150));
+  }
+  return res.json();
+}
+
+async function connect(){
+  const val = document.getElementById('tokenInput').value.trim();
+  if(!val){
+    setStatus('Pega tu refresh token primero.', true);
+    return;
+  }
+  REFRESH_TOKEN = val;
+  document.getElementById('connectBtn').disabled = true;
+  setStatus('Conectando...');
+  try{
+    await refreshAccessToken();
+    const me = await mlFetch('/users/me');
+    USER_ID = me.id;
+    document.getElementById('sellerLine').textContent =
+      (me.nickname || 'Cuenta') + ' · ' + (me.first_name || '') + ' ' + (me.last_name || '');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('refreshBtn').classList.remove('hidden');
+    await loadAll();
+  }catch(e){
+    setStatus('No se pudo conectar: ' + e.message, true);
+  }finally{
+    document.getElementById('connectBtn').disabled = false;
+  }
+}
+
+async function setPeriod(days){
+  document.querySelectorAll('#periodToggle button').forEach(b=>{
+    b.classList.toggle('active', parseInt(b.dataset.days) === days);
+  });
+  const to = todayArgKey();
+  const from = days === 0 ? to : addDaysToKey(to, -days);
+  PERIOD_FROM_KEY = from;
+  PERIOD_TO_KEY = to;
+  document.getElementById('dateFrom').value = from;
+  document.getElementById('dateTo').value = to;
+  await loadSales();
+  renderForecast();
+}
+
+async function applyCustomRange(){
+  const fromVal = document.getElementById('dateFrom').value;
+  const toVal = document.getElementById('dateTo').value;
+  if(!fromVal || !toVal){
+    setStatus('Elegí ambas fechas antes de aplicar.', true);
+    return;
+  }
+  if(fromVal > toVal){
+    setStatus('La fecha inicial no puede ser posterior a la final.', true);
+    return;
+  }
+  document.querySelectorAll('#periodToggle button').forEach(b=> b.classList.remove('active'));
+  PERIOD_FROM_KEY = fromVal;
+  PERIOD_TO_KEY = toVal;
+  await loadSales();
+  renderForecast();
+}
+
+function setChartMetric(metric){
+  CHART_METRIC = metric;
+  document.querySelectorAll('#chartMetricToggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.metric === metric);
+  });
+  renderSalesChart();
+}
+
+let LOADING = false;
+async function loadAll(){
+  if(LOADING) return;
+  LOADING = true;
+  document.getElementById('refreshBtn').disabled = true;
+  setStatus('Actualizando...');
+  try{
+    await Promise.all([ loadListingsAndStock(), loadSales(), loadDespacho(), loadReputation(), loadMonthlyGoal() ]);
+    renderForecast();
+    renderRanking();
+    setStatus('Actualizado ' + new Date().toLocaleTimeString('es-AR'));
+  }catch(e){
+    setStatus('Error al actualizar: ' + e.message, true);
+  }finally{
+    LOADING = false;
+    document.getElementById('refreshBtn').disabled = false;
+  }
+}
+
+async function loadListingsAndStock(){
+  let idsRaw = [];
+  let offset = 0;
+  const limit = 50;
+  while(true){
+    const page = await mlFetch('/users/' + USER_ID + '/items/search?status=active&limit=' + limit + '&offset=' + offset);
+    idsRaw = idsRaw.concat(page.results || []);
+    const total = page.paging ? page.paging.total : idsRaw.length;
+    offset += limit;
+    if(offset >= total || idsRaw.length >= 1000 || (page.results||[]).length === 0) break;
+  }
+  const ids = Array.from(new Set(idsRaw));
+
+  const EXCLUDED_ITEM_IDS = new Set([
+  'MLA3903822180','MLA3903788122','MLA3903788124','MLA3903822184',
+  'MLA3903822186','MLA2055433077','MLA3903788126'
+]);
+
+let items = [];
+  const seenItemIds = new Set();
+  for(let i=0;i<ids.length;i+=20){
+    const chunk = ids.slice(i,i+20);
+    const data = await mlFetch('/items?ids=' + chunk.join(','));
+    data.forEach(d=>{
+      if(d.code === 200 && !seenItemIds.has(d.body.id) && !EXCLUDED_ITEM_IDS.has(d.body.id)){
+        seenItemIds.add(d.body.id);
+        items.push(d.body);
+      }
+    });
+  }
+
+let totalStock = 0;
+  items.forEach(it=>{ totalStock += (it.available_quantity || 0); });
+  document.getElementById('cardStock').textContent = totalStock.toLocaleString('es-AR');
+
+  items.sort((a,b)=> (a.available_quantity||0) - (b.available_quantity||0));
+  STOCK_GROUPS = items.map(it=>({
+    title: it.title, permalink: it.permalink, price: it.price,
+    available_quantity: it.available_quantity || 0,
+    sold_quantity: it.sold_quantity || 0,
+    ids: [it.id]
+  }));
+
+  const titleCounts = {};
+  items.forEach(it=>{
+    const key = (it.title||'').trim().toLowerCase();
+    titleCounts[key] = (titleCounts[key]||0) + 1;
+  });
+
+  const wrap = document.getElementById('stockTableWrap');
+  document.getElementById('stockCount').textContent = items.length + ' publicaciones';
+  document.getElementById('cardListings').textContent = items.length;
+  if(items.length === 0){
+    wrap.innerHTML = '<div class="empty">No hay publicaciones activas.</div>';
+    return;
+  }
+  let rows = items.map(it=>{
+    const qty = it.available_quantity || 0;
+    let pill = 'ok', label = 'ok';
+    if(qty === 0){ pill='low'; label='sin stock'; }
+    else if(qty <= 5){ pill='low'; label='crítico'; }
+    else if(qty <= 15){ pill='mid'; label='bajo'; }
+    const key = (it.title||'').trim().toLowerCase();
+    const dupBadge = titleCounts[key] > 1 ? ' <span class="pill mid">mismo título ×'+titleCounts[key]+'</span>' : '';
+    return '<tr>' +
+      '<td><div class="prod-title"><a href="'+it.permalink+'" target="_blank">'+escapeHtml(it.title)+'</a>'+dupBadge+'</div><div class="prod-id">'+it.id+'</div></td>' +
+      '<td class="num">$'+Math.round(it.price).toLocaleString('es-AR')+'</td>' +
+      '<td class="num">'+it.sold_quantity+'</td>' +
+      '<td class="num">'+qty+' <span class="pill '+pill+'">'+label+'</span></td>' +
+      '</tr>';
+  }).join('');
+  wrap.innerHTML = '<table><thead><tr><th>Publicación</th><th style="text-align:right">Precio</th><th style="text-align:right">Vendidos (hist.)</th><th style="text-align:right">Stock</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+const DAILY_GOAL_UNITS = 17;
+
+function argMonthInfo(){
+  const todayKey = todayArgKey();
+  const [y,m] = todayKey.split('-').map(Number);
+  const firstDay = y+'-'+String(m).padStart(2,'0')+'-01';
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return { firstDay, todayKey, daysInMonth };
+}
+
+async function loadMonthlyGoal(){
+  const info = argMonthInfo();
+  const fromISO = keyToArgISO(info.firstDay, false);
+  const toISO = keyToArgISO(info.todayKey, true);
+  let offset = 0;
+  const limit = 50;
+  let units = 0;
+  while(true){
+    const q = '/orders/search?seller='+USER_ID+'&order.status=paid&order.date_created.from='+encodeURIComponent(fromISO)+'&order.date_created.to='+encodeURIComponent(toISO)+'&limit='+limit+'&offset='+offset+'&sort=date_desc';
+    const page = await mlFetch(q);
+    const results = page.results || [];
+    results.forEach(o=>{
+      (o.order_items||[]).forEach(oi=>{ units += (oi.quantity || 0); });
+    });
+    const total = page.paging ? page.paging.total : results.length;
+    offset += limit;
+    if(offset >= total || offset >= 1000 || results.length === 0) break;
+  }
+
+  const goal = DAILY_GOAL_UNITS * info.daysInMonth;
+  const pct = goal > 0 ? Math.min(100, Math.round((units / goal) * 100)) : 0;
+  document.getElementById('goalUnitsLabel').textContent = units.toLocaleString('es-AR') + ' de ' + goal.toLocaleString('es-AR') + ' unidades del mes';
+  document.getElementById('goalPercentLabel').textContent = pct + '%';
+  document.getElementById('goalBarFill').style.width = pct + '%';
+  if(pct < 50){
+    document.getElementById('goalBarFill').style.background = 'var(--red)';
+  } else if(pct < 85){
+    document.getElementById('goalBarFill').style.background = 'var(--amber)';
+  } else {
+    document.getElementById('goalBarFill').style.background = 'var(--teal)';
+  }
+}
+
+let DAILY_BUCKETS = {};
+let STOCK_GROUPS = [];
+let SALES_BY_TITLE = {};
+let PERIOD_DAY_COUNT = 1;
+
+async function loadSales(){
+  const fromISO = keyToArgISO(PERIOD_FROM_KEY, false);
+  const toISO = keyToArgISO(PERIOD_TO_KEY, true);
+
+  let offset = 0;
+  const limit = 50;
+  let totalMoney = 0;
+  let totalUnits = 0;
+  let totalFees = 0;
+  let orderCount = 0;
+  const buckets = {};
+  const byTitle = {};
+  while(true){
+    const q = '/orders/search?seller='+USER_ID+'&order.status=paid&order.date_created.from='+encodeURIComponent(fromISO)+'&order.date_created.to='+encodeURIComponent(toISO)+'&limit='+limit+'&offset='+offset+'&sort=date_desc';
+    const page = await mlFetch(q);
+    const results = page.results || [];
+    results.forEach(o=>{
+      const money = o.total_amount || 0;
+      let units = 0;
+      orderCount++;
+      (o.order_items||[]).forEach(oi=>{
+        units += (oi.quantity || 0);
+        totalFees += (oi.sale_fee || 0);
+        const t = oi.item && oi.item.title ? oi.item.title.trim().toLowerCase() : null;
+        if(t){ byTitle[t] = (byTitle[t]||0) + (oi.quantity || 0); }
+      });
+      totalMoney += money;
+      totalUnits += units;
+      const day = argKeyFromTimestamp(o.date_created);
+      if(!buckets[day]) buckets[day] = {money:0, units:0};
+      buckets[day].money += money;
+      buckets[day].units += units;
+    });
+    const total = page.paging ? page.paging.total : results.length;
+    offset += limit;
+    if(offset >= total || offset >= 1000 || results.length === 0) break;
+  }
+
+  DAILY_BUCKETS = buckets;
+  SALES_BY_TITLE = byTitle;
+  const dayCount = Math.max(1, Math.round((new Date(PERIOD_TO_KEY+'T00:00:00Z') - new Date(PERIOD_FROM_KEY+'T00:00:00Z')) / 86400000) + 1);
+  PERIOD_DAY_COUNT = dayCount;
+  document.getElementById('cardMoney').innerHTML = '$'+Math.round(totalMoney).toLocaleString('es-AR')+' <small>'+dayCount+'d</small>';
+  document.getElementById('cardUnits').innerHTML = totalUnits.toLocaleString('es-AR')+' <small>'+dayCount+'d</small>';
+  const avgTicket = orderCount > 0 ? totalMoney / orderCount : 0;
+  document.getElementById('cardTicket').textContent = '$'+Math.round(avgTicket).toLocaleString('es-AR');
+  document.getElementById('cardFees').textContent = '$'+Math.round(totalFees).toLocaleString('es-AR');
+  document.getElementById('cardNet').textContent = '$'+Math.round(totalMoney - totalFees).toLocaleString('es-AR');
+  renderSalesChart();
+  renderRanking();
+}
+
+function renderSalesChart(){
+  const labels = [];
+  const data = [];
+  let cur = PERIOD_FROM_KEY;
+  let guard = 0;
+  while(cur <= PERIOD_TO_KEY && guard < 400){
+    labels.push(cur.slice(5));
+    const b = DAILY_BUCKETS[cur];
+    data.push(b ? (CHART_METRIC === 'money' ? Math.round(b.money) : b.units) : 0);
+    cur = addDaysToKey(cur, 1);
+    guard++;
+  }
+
+  const ctx = document.getElementById('salesChart');
+  if(SALES_CHART) SALES_CHART.destroy();
+  SALES_CHART = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: CHART_METRIC === 'money' ? 'Ventas ($)' : 'Unidades vendidas',
+        data: data,
+        backgroundColor: '#3ECFB8',
+        borderRadius: 3,
+        maxBarThickness: 22
+      }]
+    },
+    options: {
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{ color:'#9FB6BC', autoSkip:true, maxRotation:0 }, grid:{ display:false } },
+        y:{ ticks:{ color:'#9FB6BC' }, grid:{ color:'#17323F' }, beginAtZero:true }
+      }
+    }
+  });
+}
+
+async function loadDespacho(){
+  let all = [];
+  for(const status of ['pending','ready_to_ship']){
+    let offset = 0;
+    const limit = 50;
+    while(true){
+      const q = '/orders/search?seller='+USER_ID+'&order.status=paid&shipping.status='+status+'&limit='+limit+'&offset='+offset+'&sort=date_desc';
+      const page = await mlFetch(q);
+      const results = page.results || [];
+      all = all.concat(results.map(o=>({...o, _shipStatus:status})));
+      const total = page.paging ? page.paging.total : results.length;
+      offset += limit;
+      if(offset >= total || offset >= 500 || results.length === 0) break;
+    }
+  }
+
+  document.getElementById('cardDespacho').textContent = all.length;
+  document.getElementById('despachoCount').textContent = all.length + ' órdenes';
+
+  const wrap = document.getElementById('despachoTableWrap');
+  if(all.length === 0){
+    wrap.innerHTML = '<div class="empty">No hay órdenes pendientes de despacho.</div>';
+    return;
+  }
+  all.sort((a,b)=> new Date(b.date_created) - new Date(a.date_created));
+  let rows = all.map(o=>{
+    const buyer = o.buyer ? (o.buyer.nickname || o.buyer.first_name || 'Comprador') : '—';
+    const itemsTxt = (o.order_items||[]).map(oi=> oi.quantity+'x '+ (oi.item ? oi.item.title : '')).join(', ');
+    const date = new Date(o.date_created).toLocaleDateString('es-AR', {timeZone:'America/Argentina/Buenos_Aires'}) + ' ' + new Date(o.date_created).toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit', timeZone:'America/Argentina/Buenos_Aires'});
+    const statusLabel = o._shipStatus === 'ready_to_ship' ? 'listo para enviar' : 'pendiente';
+    const pillClass = o._shipStatus === 'ready_to_ship' ? 'mid' : 'low';
+    return '<tr>' +
+      '<td>#'+o.id+'<div class="prod-id">'+date+'</div></td>' +
+      '<td>'+escapeHtml(buyer)+'</td>' +
+      '<td>'+escapeHtml(itemsTxt)+'</td>' +
+      '<td class="num">$'+Math.round(o.total_amount||0).toLocaleString('es-AR')+'</td>' +
+      '<td><span class="pill '+pillClass+'">'+statusLabel+'</span></td>' +
+      '</tr>';
+  }).join('');
+  wrap.innerHTML = '<table><thead><tr><th>Orden</th><th>Comprador</th><th>Items</th><th style="text-align:right">Monto</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+async function loadReputation(){
+  try{
+    const me = await mlFetch('/users/'+USER_ID);
+    const rep = me.seller_reputation || {};
+    const level = rep.level_id || 'sin datos';
+    const power = rep.power_seller_status ? ' · '+rep.power_seller_status : '';
+    document.getElementById('cardRep').textContent = level + power;
+  }catch(e){
+    document.getElementById('cardRep').textContent = 'sin datos';
+  }
+}
+
+function renderRanking(){
+  const wrap = document.getElementById('rankingWrap');
+  if(STOCK_GROUPS.length === 0){
+    wrap.innerHTML = '<div class="empty">Sin datos aún</div>';
+    return;
+  }
+  const seenTitles = new Set();
+  const universe = [];
+  STOCK_GROUPS.forEach(g=>{
+    const key = (g.title||'').trim().toLowerCase();
+    if(seenTitles.has(key)) return;
+    seenTitles.add(key);
+    universe.push({ title: g.title, units: SALES_BY_TITLE[key] || 0 });
+  });
+  const sorted = universe.slice().sort((a,b)=> b.units - a.units);
+
+  if(sorted.length === 0){
+    wrap.innerHTML = '<div class="empty">Sin datos aún</div>';
+    return;
+  }
+  let rows = sorted.map((r,i)=>{
+    return '<tr><td class="prod-id" style="width:32px;">'+(i+1)+'</td><td class="prod-title">'+escapeHtml(r.title)+'</td><td class="num" style="width:120px;">'+r.units+' un.</td></tr>';
+  }).join('');
+  wrap.innerHTML = '<table><thead><tr><th></th><th>Producto</th><th style="text-align:right">Vendido (período)</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function renderForecast(){
+  const wrap = document.getElementById('forecastTableWrap');
+  if(STOCK_GROUPS.length === 0){
+    wrap.innerHTML = '<div class="empty">Sin datos aún</div>';
+    return;
+  }
+  const rows = STOCK_GROUPS.map(g=>{
+    const key = (g.title||'').trim().toLowerCase();
+    const soldInPeriod = SALES_BY_TITLE[key] || 0;
+    const avgDaily = soldInPeriod / PERIOD_DAY_COUNT;
+    const forecast30 = Math.round(avgDaily * 30);
+    let coverage, coveragePill;
+    if(avgDaily <= 0){
+      coverage = g.available_quantity > 0 ? 'sin ventas recientes' : '—';
+      coveragePill = 'ok';
+    } else {
+      const daysLeft = Math.round(g.available_quantity / avgDaily);
+      coverage = daysLeft + ' días';
+      coveragePill = daysLeft <= 7 ? 'low' : (daysLeft <= 21 ? 'mid' : 'ok');
+    }
+    return {
+      title: g.title,
+      soldInPeriod,
+      avgDaily,
+      forecast30,
+      coverage,
+      coveragePill
+    };
+  });
+  rows.sort((a,b)=> b.avgDaily - a.avgDaily);
+
+  let html = rows.map(r=>{
+    return '<tr>' +
+      '<td class="prod-title">'+escapeHtml(r.title)+'</td>' +
+      '<td class="num">'+r.soldInPeriod+'</td>' +
+      '<td class="num">'+r.avgDaily.toFixed(1)+'</td>' +
+      '<td class="num">'+r.forecast30+'</td>' +
+      '<td class="num"><span class="pill '+r.coveragePill+'">'+r.coverage+'</span></td>' +
+      '</tr>';
+  }).join('');
+  wrap.innerHTML = '<table><thead><tr><th>Producto</th><th style="text-align:right">Vendido (período)</th><th style="text-align:right">Promedio/día</th><th style="text-align:right">Pronóstico 30 días</th><th style="text-align:right">Cobertura de stock</th></tr></thead><tbody>'+html+'</tbody></table>';
+}
+
+function escapeHtml(str){
+  if(!str) return '';
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
+
+</div>
+
+</body>
+</html>
