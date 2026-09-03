@@ -668,7 +668,7 @@ async function loadSales(){
   let totalMoney = 0;
   let totalUnits = 0;
   let totalFees = 0;
-  let orderCount = 0;
+  const buyerIds = new Set();
   const buckets = {};
   const byTitle = {};
   while(true){
@@ -678,7 +678,7 @@ async function loadSales(){
     results.forEach(o=>{
       const money = o.total_amount || 0;
       let units = 0;
-      orderCount++;
+      if(o.buyer && o.buyer.id){ buyerIds.add(o.buyer.id); }
       (o.order_items||[]).forEach(oi=>{
         units += (oi.quantity || 0);
         totalFees += (oi.sale_fee || 0);
@@ -696,6 +696,7 @@ async function loadSales(){
     offset += limit;
     if(offset >= total || offset >= 1000 || results.length === 0) break;
   }
+  const orderCount = buyerIds.size;
 
   DAILY_BUCKETS = buckets;
   SALES_BY_TITLE = byTitle;
@@ -704,7 +705,7 @@ async function loadSales(){
   document.getElementById('cardMoney').innerHTML = '$'+Math.round(totalMoney).toLocaleString('es-AR')+' <small>'+dayCount+'d</small>';
   document.getElementById('cardUnits').innerHTML = totalUnits.toLocaleString('es-AR')+' <small>'+dayCount+'d</small>';
   const avgTicket = orderCount > 0 ? totalMoney / orderCount : 0;
-  document.getElementById('cardTicket').textContent = '$'+Math.round(avgTicket).toLocaleString('es-AR');
+  document.getElementById('cardTicket').innerHTML = '$'+Math.round(avgTicket).toLocaleString('es-AR')+' <small>('+orderCount+' compradores)</small>';
   document.getElementById('cardFees').textContent = '$'+Math.round(totalFees).toLocaleString('es-AR');
   document.getElementById('cardNet').textContent = '$'+Math.round(totalMoney - totalFees).toLocaleString('es-AR');
   renderSalesChart();
