@@ -213,6 +213,7 @@
   </div>
   <button id="connectBtn" onclick="connect()">Conectar</button>
   <button class="ghost hidden" id="refreshBtn" onclick="loadAll()">Actualizar</button>
+  <button class="ghost" onclick="forgetDevice()" title="Borra la clave y el token guardados en este navegador">Olvidar este dispositivo</button>
 </div>
 <p class="status-line" id="statusLine"></p>
 
@@ -344,12 +345,23 @@ const SITE_PASSWORD = 'TPSARG2026';
 function checkSitePassword(){
   const val = document.getElementById('sitePasswordInput').value;
   if(val === SITE_PASSWORD){
-    document.getElementById('lockScreen').style.display = 'none';
-    document.getElementById('mainContent').style.display = 'block';
+    unlockSite();
+    try{ localStorage.setItem('ml_dash_unlocked', '1'); }catch(e){}
   } else {
     document.getElementById('sitePasswordError').textContent = 'Clave incorrecta.';
   }
 }
+
+function unlockSite(){
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+}
+
+try{
+  if(localStorage.getItem('ml_dash_unlocked') === '1'){
+    unlockSite();
+  }
+}catch(e){}
 
 let TOKEN = '';
 let REFRESH_TOKEN = '';
@@ -470,6 +482,7 @@ async function connect(){
       (me.nickname || 'Cuenta') + ' · ' + (me.first_name || '') + ' ' + (me.last_name || '');
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('refreshBtn').classList.remove('hidden');
+    try{ localStorage.setItem('ml_dash_refresh_token', REFRESH_TOKEN); }catch(e){}
     await loadAll();
   }catch(e){
     setStatus('No se pudo conectar: ' + e.message, true);
@@ -477,6 +490,24 @@ async function connect(){
     document.getElementById('connectBtn').disabled = false;
   }
 }
+
+function forgetDevice(){
+  try{
+    localStorage.removeItem('ml_dash_unlocked');
+    localStorage.removeItem('ml_dash_refresh_token');
+  }catch(e){}
+  location.reload();
+}
+
+try{
+  const savedToken = localStorage.getItem('ml_dash_refresh_token');
+  if(savedToken){
+    document.addEventListener('DOMContentLoaded', ()=>{
+      document.getElementById('tokenInput').value = savedToken;
+      connect();
+    });
+  }
+}catch(e){}
 
 async function setPeriod(days){
   document.querySelectorAll('#periodToggle button').forEach(b=>{
