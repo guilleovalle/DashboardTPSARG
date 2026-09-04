@@ -505,6 +505,7 @@ function forgetDevice(){
   try{
     localStorage.removeItem('ml_dash_unlocked');
     localStorage.removeItem('ml_dash_refresh_token');
+    localStorage.removeItem(PROVINCE_CACHE_KEY);
   }catch(e){}
   location.reload();
 }
@@ -708,6 +709,25 @@ function isOrderValid(o){
   return true;
 }
 
+const PROVINCE_CACHE_KEY = 'ml_dash_province_cache';
+
+function loadProvinceCache(){
+  try{
+    const raw = localStorage.getItem(PROVINCE_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){
+    return {};
+  }
+}
+
+function saveProvinceCache(cache){
+  try{
+    localStorage.setItem(PROVINCE_CACHE_KEY, JSON.stringify(cache));
+  }catch(e){
+    // localStorage lleno o no disponible: seguimos sin caché persistente, no rompe nada
+  }
+}
+
 let RAW_ORDERS = [];
 let PROVINCE_FILTER = 'all';
 
@@ -728,10 +748,14 @@ async function loadSales(){
     if(offset >= total || offset >= 1000 || results.length === 0) break;
   }
 
-  setStatus('Buscando provincia de '+raw.length+' órdenes...');
   const shipIds = [...new Set(raw.map(o => o.shipping && o.shipping.id).filter(Boolean))];
-  const provinceCache = {};
-  for(const sid of shipIds){
+  const provinceCache = loadProvinceCache();
+  const missingIds = shipIds.filter(sid => !(sid in provinceCache));
+
+  if(missingIds.length > 0){
+    setStatus('Buscando provincia de '+missingIds.length+' orden(es) nueva(s) (de '+shipIds.length+' totales, el resto ya está en caché)...');
+  }
+  for(const sid of missingIds){
     try{
       const ship = await mlFetch('/shipments/'+sid);
       provinceCache[sid] = (ship.receiver_address && ship.receiver_address.state && ship.receiver_address.state.name) || 'Sin dato';
@@ -739,6 +763,8 @@ async function loadSales(){
       provinceCache[sid] = 'Sin dato';
     }
   }
+  if(missingIds.length > 0) saveProvinceCache(provinceCache);
+
   raw.forEach(o=>{
     o.province = (o.shipping && o.shipping.id) ? (provinceCache[o.shipping.id] || 'Sin dato') : 'Sin dato';
   });
