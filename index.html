@@ -316,6 +316,16 @@
 
   <section>
     <div class="section-head">
+      <h2>Visitas, conversión y compradores por día</h2>
+      <span class="count">Visitas: línea teal · Conversión %: línea ámbar · Compradores: barras</span>
+    </div>
+    <div style="position:relative;height:260px;">
+      <canvas id="visitsChart"></canvas>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
       <h2>Órdenes a despachar</h2>
       <span class="count" id="despachoCount"></span>
     </div>
@@ -701,6 +711,10 @@ let DAILY_BUCKETS = {};
 let STOCK_GROUPS = [];
 let SALES_BY_TITLE = {};
 let PERIOD_DAY_COUNT = 1;
+let DAILY_ORDERS_COUNT = {};
+let DAILY_BUYERS_COUNT = {};
+let DAILY_VISITS = {};
+let VISITS_CHART = null;
 
 function isOrderValid(o){
   if(o.status && o.status !== 'paid') return false;
@@ -771,7 +785,24 @@ async function loadSales(){
 
   RAW_ORDERS = raw;
   populateProvinceFilter(raw);
+  await loadVisits();
   runSalesAggregation();
+}
+
+async function loadVisits(){
+  DAILY_VISITS = {};
+  try{
+    const fromKey = PERIOD_FROM_KEY;
+    const toKey = PERIOD_TO_KEY;
+    const dayCount = Math.max(1, Math.round((new Date(toKey+'T00:00:00Z') - new Date(fromKey+'T00:00:00Z')) / 86400000) + 1);
+    const data = await mlFetch('/users/'+USER_ID+'/items_visits/time_window?last='+dayCount+'&unit=day&ending='+toKey);
+    (data.results || []).forEach(r=>{
+      const day = (r.date || '').slice(0,10);
+      if(day) DAILY_VISITS[day] = r.total || 0;
+    });
+  }catch(e){
+    setStatus('No se pudieron traer las visitas: ' + e.message, true);
+  }
 }
 
 function populateProvinceFilter(orders){
@@ -800,11 +831,14 @@ function runSalesAggregation(){
   const buyerPurchaseKeys = {};
   const buckets = {};
   const byTitle = {};
+  const ordersByDay = {};
+  const buyersByDay = {};
 
   orders.forEach(o=>{
     const money = o.total_amount || 0;
     let units = 0;
     const purchaseKey = o.pack_id ? ('pack:'+o.pack_id) : ('order:'+o.id);
+    const day = argKeyFromTimestamp(o.date_created);
     if(o.buyer && o.buyer.id){
       const bid = o.buyer.id;
       buyerIds.add(bid);
@@ -814,7 +848,10 @@ function runSalesAggregation(){
         buyerCounts[bid] = { nickname: o.buyer.nickname || o.buyer.first_name || ('Comprador '+bid), money: 0 };
       }
       buyerCounts[bid].money += money;
+      if(!buyersByDay[day]) buyersByDay[day] = new Set();
+      buyersByDay[day].add(bid);
     }
+    ordersByDay[day] = (ordersByDay[day] || 0) + 1;
     (o.order_items||[]).forEach(oi=>{
       units += (oi.quantity || 0);
       totalFees += (oi.sale_fee || 0);
@@ -823,12 +860,14 @@ function runSalesAggregation(){
     });
     totalMoney += money;
     totalUnits += units;
-    const day = argKeyFromTimestamp(o.date_created);
     if(!buckets[day]) buckets[day] = {money:0, units:0};
     buckets[day].money += money;
     buckets[day].units += units;
   });
   const orderCount = buyerIds.size;
+  DAILY_ORDERS_COUNT = ordersByDay;
+  DAILY_BUYERS_COUNT = {};
+  Object.keys(buyersByDay).forEach(d => { DAILY_BUYERS_COUNT[d] = buyersByDay[d].size; });
 
   const repeatBuyers = Object.keys(buyerCounts)
     .map(bid => ({ count: buyerPurchaseKeys[bid].size }))
@@ -846,6 +885,7 @@ function runSalesAggregation(){
   document.getElementById('cardFees').textContent = '$'+Math.round(totalFees).toLocaleString('es-AR');
   document.getElementById('cardNet').textContent = '$'+Math.round(totalMoney - totalFees).toLocaleString('es-AR');
   renderSalesChart();
+  renderVisitsChart();
   renderRanking();
   renderForecast();
 }
@@ -874,7 +914,9 @@ function renderSalesChart(){
         data: data,
         backgroundColor: '#3ECFB8',
         borderRadius: 3,
-        maxBarThickness: 22
+        maxBarThickness: 22,
+        categoryPercentage: 0.95,
+        barPercentage: 0.95
       }]
     },
     options: {
@@ -941,6 +983,82 @@ async function loadReputation(){
   }catch(e){
     document.getElementById('cardRep').textContent = 'sin datos';
   }
+}
+
+function renderVisitsChart(){
+  const labels = [];
+  const visitsData = [];
+  const conversionData = [];
+  const buyersData = [];
+  let cur = PERIOD_FROM_KEY;
+  let guard = 0;
+  while(cur <= PERIOD_TO_KEY && guard < 400){
+    labels.push(cur.slice(5));
+    const visits = DAILY_VISITS[cur] || 0;
+    const orders = DAILY_ORDERS_COUNT[cur] || 0;
+    const buyers = DAILY_BUYERS_COUNT[cur] || 0;
+    visitsData.push(visits);
+    conversionData.push(visits > 0 ? Math.round((orders / visits) * 10000) / 100 : 0);
+    buyersData.push(buyers);
+    cur = addDaysToKey(cur, 1);
+    guard++;
+  }
+
+  const ctx = document.getElementById('visitsChart');
+  if(VISITS_CHART) VISITS_CHART.destroy();
+  VISITS_CHART = new Chart(ctx, {
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Compradores',
+          data: buyersData,
+          backgroundColor: '#E5765A88',
+          borderRadius: 3,
+          maxBarThickness: 22,
+          categoryPercentage: 0.95,
+          barPercentage: 0.95,
+          yAxisID: 'y1',
+          order: 3
+        },
+        {
+          type: 'line',
+          label: 'Visitas únicas',
+          data: visitsData,
+          borderColor: '#3ECFB8',
+          backgroundColor: '#3ECFB8',
+          tension: 0.3,
+          pointRadius: 3,
+          yAxisID: 'y',
+          order: 1
+        },
+        {
+          type: 'line',
+          label: 'Conversión %',
+          data: conversionData,
+          borderColor: '#E9B14D',
+          backgroundColor: '#E9B14D',
+          tension: 0.3,
+          pointRadius: 3,
+          yAxisID: 'y1',
+          order: 2
+        }
+      ]
+    },
+    options: {
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:true, labels:{ color:'#EAF3F1', boxWidth:12, font:{size:11} } }
+      },
+      scales:{
+        x:{ ticks:{ color:'#9FB6BC', autoSkip:true, maxRotation:0 }, grid:{ display:false } },
+        y:{ position:'left', ticks:{ color:'#9FB6BC' }, grid:{ color:'#17323F' }, beginAtZero:true, title:{ display:true, text:'Visitas', color:'#9FB6BC' } },
+        y1:{ position:'right', ticks:{ color:'#9FB6BC' }, grid:{ display:false }, beginAtZero:true, title:{ display:true, text:'Conversión % / Compradores', color:'#9FB6BC' } }
+      }
+    }
+  });
 }
 
 function renderRanking(){
