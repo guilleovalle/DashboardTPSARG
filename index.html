@@ -580,7 +580,7 @@ async function loadAll(){
     await Promise.all([ loadListingsAndStock(), loadSales(), loadDespacho(), loadReputation(), loadMonthlyGoal() ]);
     renderForecast();
     renderRanking();
-    setStatus('Actualizado ' + new Date().toLocaleTimeString('es-AR'));
+    setStatus('Actualizado ' + new Date().toLocaleTimeString('es-AR', {timeZone:'America/Argentina/Buenos_Aires'}));
   }catch(e){
     setStatus('Error al actualizar: ' + e.message, true);
   }finally{
