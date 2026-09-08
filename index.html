@@ -998,7 +998,7 @@ function renderVisitsChart(){
     const orders = DAILY_ORDERS_COUNT[cur] || 0;
     const buyers = DAILY_BUYERS_COUNT[cur] || 0;
     visitsData.push(visits);
-    conversionData.push(visits > 0 ? Math.round((orders / visits) * 10000) / 100 : 0);
+    conversionData.push(visits > 0 ? Math.round((buyers / visits) * 10000) / 100 : 0);
     buyersData.push(buyers);
     cur = addDaysToKey(cur, 1);
     guard++;
