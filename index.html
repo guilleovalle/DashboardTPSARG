@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Dashboard vendedor · Mercado Libre</title>
 <style>
   @font-face {
@@ -187,6 +188,34 @@
     border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;vertical-align:-2px;
   }
   @keyframes spin{to{transform:rotate(360deg);}}
+  #despachoTableWrap, #stockTableWrap, #rankingWrap, #forecastTableWrap{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  #despachoTableWrap table, #stockTableWrap table, #rankingWrap table, #forecastTableWrap table{
+    min-width:520px;
+  }
+  @media (max-width: 640px){
+    body{ padding:16px 14px 60px; }
+    h1{ font-size:22px; }
+    .sub{ font-size:12px; margin-bottom:18px; }
+    .topbar{ padding:14px 14px; gap:10px; }
+    .field{ min-width:100%; }
+    .topbar button{ flex:1; min-width:120px; }
+    .cards{ grid-template-columns:repeat(2, 1fr); gap:10px; }
+    .card{ padding:12px 14px; }
+    .card .value{ font-size:20px; }
+    #periodRow > div{ flex-direction:column; align-items:stretch !important; gap:10px; }
+    .period-toggle{ width:100%; }
+    .period-toggle button{ flex:1; padding:10px 6px; font-size:12px; }
+    #periodRow input[type=date]{ flex:1; min-width:0; font-size:13px; padding:8px 6px; }
+    section{ margin-bottom:24px; }
+    .section-head{ flex-wrap:wrap; gap:4px; }
+    .section-head h2{ font-size:16px; }
+    table{ font-size:12px; }
+    th, td{ padding:8px 6px; }
+    div[style*="height:260px"]{ height:220px !important; }
+  }
 </style>
 </head>
 <body>
