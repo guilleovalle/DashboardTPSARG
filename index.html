@@ -574,6 +574,7 @@ async function setPeriod(days){
   document.getElementById('dateTo').value = to;
   await loadSales();
   renderForecast();
+  renderStockTable();
 }
 
 async function applyCustomRange(){
@@ -592,6 +593,7 @@ async function applyCustomRange(){
   PERIOD_TO_KEY = toVal;
   await loadSales();
   renderForecast();
+  renderStockTable();
 }
 
 function setChartMetric(metric){
@@ -612,6 +614,7 @@ async function loadAll(){
     await Promise.all([ loadListingsAndStock(), loadSales(), loadDespacho(), loadReputation(), loadMonthlyGoal() ]);
     renderForecast();
     renderRanking();
+    renderStockTable();
     setStatus('Actualizado ' + new Date().toLocaleTimeString('es-AR', {timeZone:'America/Argentina/Buenos_Aires'}));
   }catch(e){
     setStatus('Error al actualizar: ' + e.message, true);
@@ -660,7 +663,6 @@ let totalStock = 0;
   STOCK_GROUPS = items.map(it=>({
     title: it.title, permalink: it.permalink, price: it.price,
     available_quantity: it.available_quantity || 0,
-    sold_quantity: it.sold_quantity || 0,
     ids: [it.id]
   }));
 
@@ -669,30 +671,37 @@ let totalStock = 0;
     const key = (it.title||'').trim().toLowerCase();
     titleCounts[key] = (titleCounts[key]||0) + 1;
   });
+  STOCK_TITLE_COUNTS = titleCounts;
 
-  const wrap = document.getElementById('stockTableWrap');
   document.getElementById('stockCount').textContent = items.length + ' publicaciones';
   document.getElementById('cardListings').textContent = items.length;
-  if(items.length === 0){
+
+  renderStockTable();
+}
+
+function renderStockTable(){
+  const wrap = document.getElementById('stockTableWrap');
+  if(STOCK_GROUPS.length === 0){
     wrap.innerHTML = '<div class="empty">No hay publicaciones activas.</div>';
     return;
   }
-  let rows = items.map(it=>{
+  let rows = STOCK_GROUPS.map(it=>{
     const qty = it.available_quantity || 0;
     let pill = 'ok', label = 'ok';
     if(qty === 0){ pill='low'; label='sin stock'; }
     else if(qty <= 5){ pill='low'; label='crítico'; }
     else if(qty <= 15){ pill='mid'; label='bajo'; }
     const key = (it.title||'').trim().toLowerCase();
-    const dupBadge = titleCounts[key] > 1 ? ' <span class="pill mid">mismo título ×'+titleCounts[key]+'</span>' : '';
+    const dupBadge = STOCK_TITLE_COUNTS[key] > 1 ? ' <span class="pill mid">mismo título ×'+STOCK_TITLE_COUNTS[key]+'</span>' : '';
+    const soldPeriod = SALES_BY_TITLE[key] || 0;
     return '<tr>' +
-      '<td><div class="prod-title"><a href="'+it.permalink+'" target="_blank">'+escapeHtml(it.title)+'</a>'+dupBadge+'</div><div class="prod-id">'+it.id+'</div></td>' +
+      '<td><div class="prod-title"><a href="'+it.permalink+'" target="_blank">'+escapeHtml(it.title)+'</a>'+dupBadge+'</div><div class="prod-id">'+it.ids.join(', ')+'</div></td>' +
       '<td class="num">$'+Math.round(it.price).toLocaleString('es-AR')+'</td>' +
-      '<td class="num">'+it.sold_quantity+'</td>' +
+      '<td class="num">'+soldPeriod+'</td>' +
       '<td class="num">'+qty+' <span class="pill '+pill+'">'+label+'</span></td>' +
       '</tr>';
   }).join('');
-  wrap.innerHTML = '<table><thead><tr><th>Publicación</th><th style="text-align:right">Precio</th><th style="text-align:right">Vendidos (hist.)</th><th style="text-align:right">Stock</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  wrap.innerHTML = '<table><thead><tr><th>Publicación</th><th style="text-align:right">Precio</th><th style="text-align:right">Vendido (período)</th><th style="text-align:right">Stock</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 const DAILY_GOAL_UNITS = 17;
@@ -741,6 +750,7 @@ async function loadMonthlyGoal(){
 
 let DAILY_BUCKETS = {};
 let STOCK_GROUPS = [];
+let STOCK_TITLE_COUNTS = {};
 let SALES_BY_TITLE = {};
 let PERIOD_DAY_COUNT = 1;
 let DAILY_ORDERS_COUNT = {};
@@ -920,6 +930,7 @@ function runSalesAggregation(){
   renderVisitsChart();
   renderRanking();
   renderForecast();
+  renderStockTable();
 }
 
 function renderSalesChart(){
