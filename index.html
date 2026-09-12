@@ -798,7 +798,12 @@ async function loadSales(){
     const q = '/orders/search?seller='+USER_ID+'&order.status=paid&order.date_created.from='+encodeURIComponent(fromISO)+'&order.date_created.to='+encodeURIComponent(toISO)+'&limit='+limit+'&offset='+offset+'&sort=date_desc';
     const page = await mlFetch(q);
     const results = page.results || [];
-    results.forEach(o=>{ if(isOrderValid(o)) raw.push(o); });
+    results.forEach(o=>{
+      const valid = isOrderValid(o);
+      const units = (o.order_items||[]).reduce((s,oi)=> s + (Number(oi.quantity)||0), 0);
+      console.log('[ML DEBUG] orden', o.id, '| status:', o.status, '| valid:', valid, '| unidades:', units, '| fecha:', o.date_created, '| payments:', (o.payments||[]).map(p=>p.status));
+      if(valid) raw.push(o);
+    });
     const total = page.paging ? page.paging.total : results.length;
     offset += limit;
     if(offset >= total || offset >= 1000 || results.length === 0) break;
