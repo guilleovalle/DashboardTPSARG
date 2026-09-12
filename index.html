@@ -727,7 +727,7 @@ async function loadMonthlyGoal(){
     const results = page.results || [];
     results.forEach(o=>{
       if(!isOrderValid(o)) return;
-      (o.order_items||[]).forEach(oi=>{ units += (oi.quantity || 0); });
+      (o.order_items||[]).forEach(oi=>{ units += (Number(oi.quantity) || 0); });
     });
     const total = page.paging ? page.paging.total : results.length;
     offset += limit;
@@ -895,10 +895,10 @@ function runSalesAggregation(){
     }
     ordersByDay[day] = (ordersByDay[day] || 0) + 1;
     (o.order_items||[]).forEach(oi=>{
-      units += (oi.quantity || 0);
+      units += (Number(oi.quantity) || 0);
       totalFees += (oi.sale_fee || 0);
       const t = oi.item && oi.item.title ? oi.item.title.trim().toLowerCase() : null;
-      if(t){ byTitle[t] = (byTitle[t]||0) + (oi.quantity || 0); }
+      if(t){ byTitle[t] = (byTitle[t]||0) + (Number(oi.quantity) || 0); }
     });
     totalMoney += money;
     totalUnits += units;
